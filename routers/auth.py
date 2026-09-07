@@ -85,3 +85,20 @@ def list_patients(db: Session = Depends(get_db)):
         }
         for p in patients
     ]
+
+@router.get("/users")
+def list_all_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "fullName": u.full_name,
+            "phone": u.phone,
+            "role": u.role,
+            "age": u.age,
+            "gender": u.gender,
+            "joined": u.created_at.strftime("%Y-%m-%d %H:%M:%S") if u.created_at else "2026-09-01 00:00:00"
+        }
+        for u in users
+    ]
