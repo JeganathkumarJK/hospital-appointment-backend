@@ -17,6 +17,20 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+def run_migrations():
+    """Auto-add new columns to existing databases if needed."""
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        for col_def in [
+            "ALTER TABLE users ADD COLUMN last_login DATETIME",
+            "ALTER TABLE users ADD COLUMN login_count INTEGER DEFAULT 0",
+        ]:
+            try:
+                conn.execute(text(col_def))
+                conn.commit()
+            except Exception:
+                pass
+
 def get_db():
     """Dependency for obtaining a thread-safe database session."""
     db = SessionLocal()

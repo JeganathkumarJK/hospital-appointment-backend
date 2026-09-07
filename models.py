@@ -14,6 +14,21 @@ class User(Base):
     role = Column(String(20), default="patient") # 'patient', 'admin', 'doctor'
     age = Column(Integer, nullable=True)
     gender = Column(String(20), nullable=True)
+    last_login = Column(DateTime, nullable=True)
+    login_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class LoginLog(Base):
+    __tablename__ = "login_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(50), nullable=True, index=True)
+    email = Column(String(120), nullable=False, index=True)
+    full_name = Column(String(100), nullable=True)
+    role = Column(String(20), default="patient")
+    status = Column(String(20), default="SUCCESS") # SUCCESS, FAILED
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Appointment(Base):

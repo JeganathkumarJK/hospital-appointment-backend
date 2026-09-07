@@ -78,3 +78,19 @@ def decline_slot(waitlist_id: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(item)
     return serialize_waitlist(item)
+
+@router.delete("/{waitlist_id}")
+def delete_waitlist_item(waitlist_id: str, db: Session = Depends(get_db)):
+    item = db.query(Waitlist).filter(Waitlist.id == waitlist_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail=f"Waitlist record {waitlist_id} not found")
+
+    deleted_patient = item.patient
+    db.delete(item)
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Waitlist record {waitlist_id} for {deleted_patient} deleted successfully.",
+        "deletedId": waitlist_id
+    }

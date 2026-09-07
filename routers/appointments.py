@@ -191,3 +191,20 @@ def mark_appointment_no_show(apt_id: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(apt)
     return serialize_apt(apt)
+
+@router.delete("/{apt_id}")
+def delete_appointment(apt_id: str, db: Session = Depends(get_db)):
+    apt = db.query(Appointment).filter(Appointment.id == apt_id).first()
+    if not apt:
+        raise HTTPException(status_code=404, detail=f"Appointment {apt_id} not found")
+
+    deleted_patient = apt.patient
+    deleted_date = f"{apt.date} at {apt.time}"
+    db.delete(apt)
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Appointment {apt_id} for {deleted_patient} ({deleted_date}) deleted successfully.",
+        "deletedId": apt_id
+    }
