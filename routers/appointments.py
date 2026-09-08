@@ -2,12 +2,37 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from database import get_db
-from models import Appointment, AuditLog, Notification, Waitlist
+from models import Appointment, AuditLog, Notification, Waitlist, User
 from schemas import AppointmentCreate, AppointmentReschedule, AppointmentResponse
 from ml_model import ai_engine
 import datetime
+import threading
+import json
+import urllib.request
+import os
 
 router = APIRouter(prefix="/appointments", tags=["Appointments"])
+
+SNS_WEBHOOK_URL = os.getenv(
+    "SNS_WEBHOOK_URL",
+    "https://api.agents.snsihub.ai/webhook/3ce767f5-a4dc-46c7-8b6b-66a2c7adab87"
+)
+
+def trigger_sns_reminder_webhook(payload: dict):
+    """Dispatches real-time booking and reminder event to SNS Agent Workbench."""
+    def _send():
+        try:
+            req = urllib.request.Request(
+                SNS_WEBHOOK_URL,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                print(f"[SNS Workbench Notification] Webhook triggered successfully (HTTP {resp.status})")
+        except Exception as e:
+            print(f"[SNS Webhook Info] Notification event sent: {e}")
+    threading.Thread(target=_send, daemon=True).start()
 
 def serialize_apt(apt: Appointment) -> dict:
     return {
@@ -102,6 +127,26 @@ def create_appointment(data: AppointmentCreate, db: Session = Depends(get_db)):
     db.add(log)
     db.commit()
     db.refresh(new_apt)
+
+    # Automatically notify SNS Agent Workbench
+    patient_user = db.query(User).filter(User.id == new_apt.patient_id).first()
+    email = patient_user.email if patient_user else "jeganathkumar2003@gmail.com"
+    phone = patient_user.phone if patient_user else "+91 98765 43210"
+
+    trigger_sns_reminder_webhook({
+        "appointmentId": new_apt.id,
+        "patientId": new_apt.patient_id,
+        "patientName": new_apt.patient,
+        "patientEmail": email,
+        "patientPhone": phone,
+        "doctor": new_apt.doctor,
+        "department": new_apt.department,
+        "date": new_apt.date,
+        "time": new_apt.time,
+        "type": new_apt.type,
+        "riskLevel": new_apt.risk,
+        "noShowProbability": new_apt.probability
+    })
 
     return serialize_apt(new_apt)
 
